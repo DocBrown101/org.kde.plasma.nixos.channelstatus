@@ -42,7 +42,6 @@ PlasmoidItem {
     Plasmoid.backgroundHints: PlasmaCore.Types.DefaultBackground
     
     Component.onCompleted: {
-        Logic.setTranslateFunction(root.tr);
         updateStatus();
         updateAllChannels();
     }
@@ -418,13 +417,13 @@ PlasmoidItem {
         
         Logic.fetchChannelStatus(channelVersion, function(status) {
             root.channelStatus = status;
-        });
+        }, false, root.currentLanguage);
     }
-    
+
     function updateAllChannels() {
         Logic.fetchAllChannels(function(channels) {
             root.allChannelsData = channels;
-        });
+        }, root.currentLanguage);
     }
 
     function getAbsoluteTooltipDateTime(isoString) {
