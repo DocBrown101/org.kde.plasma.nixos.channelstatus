@@ -411,6 +411,20 @@ PlasmoidItem {
             updateAllChannels();
         }
     }
+
+    Timer {
+        id: labelUpdateTimer
+        interval: 60000
+        running: true
+        repeat: true
+        onTriggered: {
+            if (root.channelStatus.status === "success" && root.channelStatus.rawDateTime && !isOlderThan60Minutes(root.channelStatus.rawDateTime)) {
+                var date = new Date(root.channelStatus.rawDateTime);
+                var updatedText = Logic.formatDateTime(date, root.currentLanguage);
+                root.channelStatus.lastUpdated = updatedText;
+            }
+        }
+    }
     
     function updateStatus() {
         channelStatus = { lastUpdated: "Lädt...", commit: "", status: "loading", channel: "nixos-" + channelVersion };
@@ -453,6 +467,14 @@ PlasmoidItem {
         if (isNaN(date)) return false;
         var diffHours = (Date.now() - date.getTime()) / (1000 * 60 * 60);
         return diffHours >= 48;
+    }
+
+    function isOlderThan60Minutes(isoString) {
+        if (!isoString) return false;
+        var date = new Date(isoString);
+        if (isNaN(date)) return false;
+        var diffMinutes = (Date.now() - date.getTime()) / (1000 * 60);
+        return diffMinutes >= 60;
     }
     
     function getStatusText() {

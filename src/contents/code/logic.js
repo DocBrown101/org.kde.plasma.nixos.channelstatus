@@ -267,7 +267,7 @@ function formatDateTime(date, lang) {
     if (diffMinutes < 60) {
         return tr(lang, "vor %1 Minute", "vor %1 Minuten", "%1 minute ago", "%1 minutes ago", diffMinutes);
     }
-    if (diffHours < 24) {
+    if (diffHours < 48) {
         return tr(lang, "vor %1 Stunde", "vor %1 Stunden", "%1 hour ago", "%1 hours ago", diffHours);
     }
     if (diffDays < 30) {
