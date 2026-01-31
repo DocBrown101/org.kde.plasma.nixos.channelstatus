@@ -267,10 +267,14 @@ function formatDateTime(date, lang) {
     if (diffMinutes < 60) {
         return tr(lang, "vor %1 Minute", "vor %1 Minuten", "%1 minute ago", "%1 minutes ago", diffMinutes);
     }
-    if (diffHours < 48) {
+    if (diffHours < 24) {
         return tr(lang, "vor %1 Stunde", "vor %1 Stunden", "%1 hour ago", "%1 hours ago", diffHours);
     }
     if (diffDays < 30) {
+        var remainingHours = diffHours % 24;
+        if (remainingHours >= 12) {
+            diffDays = diffDays + "½";
+        }
         return tr(lang, "vor %1 Tag", "vor %1 Tagen", "%1 day ago", "%1 days ago", diffDays);
     }
     return Qt.formatDate(date, "dd.MM.yyyy");

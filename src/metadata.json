@@ -13,7 +13,7 @@
         "Id": "org.kde.plasma.nixos.channelstatus",
         "License": "MIT",
         "Name": "NixOS Channel-Status",
-        "Version": "0.9.2",
+        "Version": "0.9.3",
         "Website": "https://github.com/DocBrown101/org.kde.plasma.nixos.channelstatus",
         "BugReportUrl": "https://github.com/DocBrown101/org.kde.plasma.nixos.channelstatus/issues"
     },
