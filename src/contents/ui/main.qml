@@ -42,21 +42,21 @@ PlasmoidItem {
     Plasmoid.backgroundHints: PlasmaCore.Types.DefaultBackground
     
     Component.onCompleted: {
-        updateStatus();
+        updateStatus(true);
         updateAllChannels();
     }
     
     // Settings changed
     onChannelVersionChanged: {
         console.log("Channel Version geändert auf:", channelVersion);
-        updateStatus();
+        updateStatus(true);
     }
     onUpdateIntervalChanged: {
         console.log("Update Interval geändert auf:", updateInterval);
     }
     onConfigLanguageChanged: {
         console.log("Sprache geändert auf:", configLanguage, "-> Effektiv:", currentLanguage);
-        updateStatus();
+        updateStatus(true);
         updateAllChannels();
     }
     
@@ -373,7 +373,7 @@ PlasmoidItem {
                     text: tr("Aktualisieren", "Refresh")
                     icon.name: "view-refresh"
                     onClicked: {
-                        updateStatus();
+                        updateStatus(true);
                         updateAllChannels();
                     }
                 }
@@ -407,7 +407,7 @@ PlasmoidItem {
         running: true
         repeat: true
         onTriggered: {
-            updateStatus();
+            updateStatus(false);
             updateAllChannels();
         }
     }
@@ -418,17 +418,18 @@ PlasmoidItem {
         running: true
         repeat: true
         onTriggered: {
-            if (root.channelStatus.status === "success" && root.channelStatus.rawDateTime && !isOlderThan60Minutes(root.channelStatus.rawDateTime)) {
+            if (root.channelStatus.status === "success" && root.channelStatus.rawDateTime) {
                 var date = new Date(root.channelStatus.rawDateTime);
-                var updatedText = Logic.formatDateTime(date, root.currentLanguage);
-                root.channelStatus.lastUpdated = updatedText;
+                root.channelStatus.lastUpdated = Logic.formatDateTime(date, root.currentLanguage);
             }
         }
     }
-    
-    function updateStatus() {
-        channelStatus = { lastUpdated: "Lädt...", commit: "", status: "loading", channel: "nixos-" + channelVersion };
-        
+
+    function updateStatus(forceUpdate) {
+        if (forceUpdate) {
+            root.channelStatus = { lastUpdated: tr("Lädt ...", "Loading..."), commit: "", status: "loading", channel: "nixos-" + channelVersion };
+        }
+
         Logic.fetchChannelStatus(channelVersion, function(status) {
             root.channelStatus = status;
         }, false, root.currentLanguage);
@@ -460,7 +461,7 @@ PlasmoidItem {
         }
         return Kirigami.Theme.textColor;
     }
-    
+
     function isOlderThan48Hours(isoString) {
         if (!isoString) return false;
         var date = new Date(isoString);
@@ -469,14 +470,6 @@ PlasmoidItem {
         return diffHours >= 48;
     }
 
-    function isOlderThan60Minutes(isoString) {
-        if (!isoString) return false;
-        var date = new Date(isoString);
-        if (isNaN(date)) return false;
-        var diffMinutes = (Date.now() - date.getTime()) / (1000 * 60);
-        return diffMinutes >= 60;
-    }
-    
     function getStatusText() {
         if (root.channelStatus.status === "success") {
             return tr("✓ Channel Status für NixOS %1", "✓ Channel status for NixOS %1", root.channelVersion);
