@@ -420,9 +420,14 @@ PlasmoidItem {
         onTriggered: {
             if (root.channelStatus.status === "success" && root.channelStatus.rawDateTime) {
                 var date = new Date(root.channelStatus.rawDateTime);
-                root.channelStatus.lastUpdated = Logic.formatDateTime(date, root.currentLanguage);
+                // root.channelStatus.lastUpdated = Logic.formatDateTime(date, root.currentLanguage);
+                partialUpdateChannelStatus({ lastUpdated: Logic.formatDateTime(date, root.currentLanguage) });
             }
         }
+    }
+
+    function partialUpdateChannelStatus(updates) {
+        root.channelStatus = Object.assign({}, root.channelStatus, updates);
     }
 
     function updateStatus(forceUpdate) {
