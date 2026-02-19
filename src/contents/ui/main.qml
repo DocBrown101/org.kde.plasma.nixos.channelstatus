@@ -2,13 +2,12 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls as QQC2
 import org.kde.plasma.plasmoid
-import org.kde.plasma.core as PlasmaCore
 import org.kde.kirigami as Kirigami
 import "../code/logic.js" as Logic
 
 PlasmoidItem {
     id: root
-    
+
     property var channelStatus: ({ 
         lastUpdated: "Lädt ...", 
         revision: "", 
@@ -18,7 +17,7 @@ PlasmoidItem {
         variant: ""
     })
     property var allChannelsData: []
-    
+
     // Settings
     property string channelVersion: Plasmoid.configuration.channelVersion
     property int updateInterval: Plasmoid.configuration.updateInterval
@@ -38,14 +37,12 @@ PlasmoidItem {
         }
         return text;
     }
-    
-    Plasmoid.backgroundHints: PlasmaCore.Types.DefaultBackground
-    
+
     Component.onCompleted: {
         updateStatus(true);
         updateAllChannels();
     }
-    
+
     // Settings changed
     onChannelVersionChanged: {
         console.log("Channel Version geändert auf:", channelVersion);
@@ -59,7 +56,7 @@ PlasmoidItem {
         updateStatus(true);
         updateAllChannels();
     }
-    
+
     compactRepresentation: Item {
         Layout.minimumWidth: compactLayout.implicitWidth + Kirigami.Units.smallSpacing * 2
         Layout.minimumHeight: compactLayout.implicitHeight + Kirigami.Units.smallSpacing * 2
@@ -112,7 +109,7 @@ PlasmoidItem {
             }
         }
     }
-    
+
     fullRepresentation: Item {
         Layout.minimumWidth: Kirigami.Units.gridUnit * 24
         Layout.minimumHeight: Kirigami.Units.gridUnit * 18
