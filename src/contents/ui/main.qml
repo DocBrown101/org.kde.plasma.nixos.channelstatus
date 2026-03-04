@@ -8,13 +8,16 @@ import "../code/logic.js" as Logic
 PlasmoidItem {
     id: root
 
-    property var channelStatus: ({ 
-        lastUpdated: "Lädt ...", 
-        revision: "", 
-        status: "loading", 
+    property var channelStatus: ({
         channel: "",
-        channelStatus: "",
-        variant: ""
+        commit: "",
+        fullCommit: "",
+        lastUpdated: "Lädt ...",
+        maxRetries: 0,
+        rawDateTime: "",
+        retryCount: 0,
+        status: "loading",
+        timestamp: 0
     })
     property var allChannelsData: []
 
@@ -248,11 +251,7 @@ PlasmoidItem {
                                         anchors.fill: parent
                                         hoverEnabled: true
                                         cursorShape: Qt.PointingHandCursor
-                                        onClicked: {
-                                            if (root.channelStatus.fullCommit) {
-                                                Qt.openUrlExternally("https://github.com/NixOS/nixpkgs/commit/" + root.channelStatus.fullCommit);
-                                            }
-                                        }
+                                        onClicked: root.openCommitLink(root.channelStatus.fullCommit)
                                     }
                                 }
                             }
@@ -338,11 +337,7 @@ PlasmoidItem {
                                         anchors.fill: parent
                                         hoverEnabled: true
                                         cursorShape: modelData.fullCommit ? Qt.PointingHandCursor : Qt.ArrowCursor
-                                        onClicked: {
-                                            if (modelData.fullCommit) {
-                                                Qt.openUrlExternally("https://github.com/NixOS/nixpkgs/commit/" + modelData.fullCommit);
-                                            }
-                                        }
+                                        onClicked: root.openCommitLink(modelData.fullCommit)
                                     }
                                 }
                             }
@@ -417,7 +412,6 @@ PlasmoidItem {
         onTriggered: {
             if (root.channelStatus.status === "success" && root.channelStatus.rawDateTime) {
                 var date = new Date(root.channelStatus.rawDateTime);
-                // root.channelStatus.lastUpdated = Logic.formatDateTime(date, root.currentLanguage);
                 partialUpdateChannelStatus({ lastUpdated: Logic.formatDateTime(date, root.currentLanguage) });
             }
         }
@@ -470,6 +464,12 @@ PlasmoidItem {
         if (isNaN(date)) return false;
         var diffHours = (Date.now() - date.getTime()) / (1000 * 60 * 60);
         return diffHours >= 48;
+    }
+
+    function openCommitLink(fullCommit) {
+        if (fullCommit) {
+            Qt.openUrlExternally("https://github.com/NixOS/nixpkgs/commit/" + fullCommit);
+        }
     }
 
     function getStatusText() {

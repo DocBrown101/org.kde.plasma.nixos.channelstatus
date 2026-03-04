@@ -1,9 +1,3 @@
-var channelStatus = {
-    lastUpdated: "Warte auf Verbindung...",
-    revision: "",
-    status: "waiting",
-    channel: ""
-};
 var retryCount = 0;
 var maxRetries = 5;
 var retryDelay = 5000;
@@ -102,7 +96,6 @@ function fetchChannelStatus(version, callback, isRetry, lang) {
                         channel: channelName
                     };
 
-                    channelStatus = status;
                     callback(status);
                 }, lang);
             } else {
@@ -111,7 +104,6 @@ function fetchChannelStatus(version, callback, isRetry, lang) {
                     status: "not_found",
                     channel: channelName
                 };
-                channelStatus = notFoundStatus;
                 callback(notFoundStatus);
             }
         } else if (result.status === "network_error" && retryCount < maxRetries) {
@@ -130,7 +122,6 @@ function fetchChannelStatus(version, callback, isRetry, lang) {
                 maxRetries: maxRetries
             };
 
-            channelStatus = retryStatus;
             callback(retryStatus);
 
             try {
@@ -159,7 +150,6 @@ function fetchChannelStatus(version, callback, isRetry, lang) {
                 channel: channelName
             };
             retryCount = 0;
-            channelStatus = errorStatus;
             callback(errorStatus);
         }
     }, lang);
