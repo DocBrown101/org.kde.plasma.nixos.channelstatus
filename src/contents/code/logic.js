@@ -1,8 +1,3 @@
-var retryCount = 0;
-var maxRetries = 5;
-var retryDelay = 5000;
-var activeRetryTimer = null;
-
 function tr(lang, de, en) {
     if (arguments.length === 3) {
         return lang === "de" ? de : en;
@@ -62,22 +57,12 @@ function fetchAPI(url, callback, lang) {
     }
 }
 
-function fetchChannelStatus(version, callback, isRetry, lang) {
-    if (!isRetry) {
-        retryCount = 0;
-        if (activeRetryTimer) {
-            activeRetryTimer.stop();
-            activeRetryTimer.destroy();
-            activeRetryTimer = null;
-        }
-        console.log("=== Lade Channel-Daten ===");
-    }
-
+function fetchChannelStatus(version, callback, lang) {
     var channelName = "nixos-" + version;
+    console.log("=== Lade Channel-Daten ===");
 
     fetchAPI("https://prometheus.nixos.org/api/v1/query?query=channel_update_time", function(result) {
         if (result.status === "success") {
-            retryCount = 0;
             var channelData = findChannelInResponse(result.data, channelName);
 
             if (channelData) {
@@ -86,7 +71,7 @@ function fetchChannelStatus(version, callback, isRetry, lang) {
                         findRevisionForChannel(revResult.data, channelName) :
                         {commit: "", fullCommit: ""};
 
-                    var status = {
+                    callback({
                         lastUpdated: formatDateTime(channelData.date, lang),
                         rawDateTime: channelData.date.toISOString(),
                         timestamp: channelData.timestamp,
@@ -94,63 +79,17 @@ function fetchChannelStatus(version, callback, isRetry, lang) {
                         fullCommit: revision.fullCommit,
                         status: "success",
                         channel: channelName
-                    };
-
-                    callback(status);
+                    });
                 }, lang);
             } else {
-                var notFoundStatus = {
+                callback({
                     lastUpdated: tr(lang, "Channel nicht gefunden", "Channel not found"),
                     status: "not_found",
                     channel: channelName
-                };
-                callback(notFoundStatus);
-            }
-        } else if (result.status === "network_error" && retryCount < maxRetries) {
-            retryCount++;
-            console.log("⏳ Retry", retryCount, "/", maxRetries);
-
-            var retryMsg = lang === "de" ? 
-                "Verbindungsfehler, Retry " + retryCount + "/" + maxRetries + "..." :
-                "Connection error, retry " + retryCount + "/" + maxRetries + "...";
-
-            var retryStatus = {
-                lastUpdated: retryMsg,
-                status: "retrying",
-                channel: channelName,
-                retryCount: retryCount,
-                maxRetries: maxRetries
-            };
-
-            callback(retryStatus);
-
-            try {
-                activeRetryTimer = Qt.createQmlObject(
-                    'import QtQuick 2.15; Timer { interval: ' + retryDelay + '; repeat: false; running: true }',
-                    Qt.application,
-                    'retryTimer'
-                );
-                activeRetryTimer.triggered.connect(function() {
-                    fetchChannelStatus(version, callback, true, lang);
-                    activeRetryTimer.destroy();
-                    activeRetryTimer = null;
                 });
-            } catch (e) {
-                console.log("Retry Timer Fehler", e);
-                fetchChannelStatus(version, callback, true, lang);
             }
         } else {
-            var errorMsg = retryCount >= maxRetries ? 
-                tr(lang, "Keine Verbindung", "No connection") : 
-                result.error;
-            
-            var errorStatus = {
-                lastUpdated: errorMsg,
-                status: "error",
-                channel: channelName
-            };
-            retryCount = 0;
-            callback(errorStatus);
+            callback({status: "network_error", channel: channelName, error: result.error});
         }
     }, lang);
 }

@@ -20,6 +20,8 @@ PlasmoidItem {
         timestamp: 0
     })
     property var allChannelsData: []
+    property int retryCount: 0
+    property int maxRetries: 5
 
     // Settings
     property string channelVersion: Plasmoid.configuration.channelVersion
@@ -405,6 +407,14 @@ PlasmoidItem {
     }
 
     Timer {
+        id: retryTimer
+        interval: 5000
+        repeat: false
+        running: false
+        onTriggered: doFetch()
+    }
+
+    Timer {
         id: labelUpdateTimer
         interval: 60000
         running: true
@@ -422,13 +432,45 @@ PlasmoidItem {
     }
 
     function updateStatus(forceUpdate) {
+        root.retryCount = 0;
+        retryTimer.stop();
         if (forceUpdate) {
             root.channelStatus = { lastUpdated: tr("Lädt ...", "Loading..."), commit: "", status: "loading", channel: "nixos-" + channelVersion };
         }
+        doFetch();
+    }
 
+    function doFetch() {
         Logic.fetchChannelStatus(channelVersion, function(status) {
-            root.channelStatus = status;
-        }, false, root.currentLanguage);
+            if (status.status === "network_error") {
+                if (root.retryCount < root.maxRetries) {
+                    root.retryCount++;
+                    console.log("⏳ Retry", root.retryCount, "/", root.maxRetries);
+                    var retryMsg = root.currentLanguage === "de" ?
+                        "Verbindungsfehler, Retry " + root.retryCount + "/" + root.maxRetries + "..." :
+                        "Connection error, retry " + root.retryCount + "/" + root.maxRetries + "...";
+                    root.channelStatus = {
+                        lastUpdated: retryMsg,
+                        status: "retrying",
+                        channel: status.channel,
+                        retryCount: root.retryCount,
+                        maxRetries: root.maxRetries
+                    };
+                    retryTimer.restart();
+                } else {
+                    root.channelStatus = {
+                        lastUpdated: root.currentLanguage === "de" ? "Keine Verbindung" : "No connection",
+                        status: "error",
+                        channel: status.channel
+                    };
+                    root.retryCount = 0;
+                }
+            } else {
+                root.retryCount = 0;
+                retryTimer.stop();
+                root.channelStatus = status;
+            }
+        }, root.currentLanguage);
     }
 
     function updateAllChannels() {
