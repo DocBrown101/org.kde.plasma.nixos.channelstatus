@@ -4,7 +4,7 @@ A KDE Plasma 6 plasmoid that displays the current status of NixOS channels direc
 
 [![Download on opendesktop.org](https://img.shields.io/badge/Download-opendesktop.org-blue)](https://www.opendesktop.org/p/2332279)
 
-## Screenshots
+## Screenshot
 
 ![Preview](https://github.com/DocBrown101/org.kde.plasma.nixos.channelstatus/blob/main/docs/screenshot.png)
 
@@ -126,7 +126,7 @@ Contributions are welcome! Please feel free to submit issues or pull requests.
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the [MIT License](LICENSE).
 
 ## Links
 
