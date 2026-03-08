@@ -4,6 +4,10 @@ A KDE Plasma 6 plasmoid that displays the current status of NixOS channels direc
 
 [![Download on opendesktop.org](https://img.shields.io/badge/Download-opendesktop.org-blue)](https://www.opendesktop.org/p/2332279)
 
+## Screenshots
+
+![Preview](https://github.com/DocBrown101/org.kde.plasma.nixos.channelstatus/blob/main/docs/screenshot.png)
+
 ## Features
 
 - **Real-time Channel Monitoring**: Display the last update time and current commit hash for your selected NixOS channel
@@ -13,10 +17,6 @@ A KDE Plasma 6 plasmoid that displays the current status of NixOS channels direc
 - **Bilingual Support**: German and English interface
 - **Network Resilience**: Automatic retry mechanism
 - **Compact & Full Views**: Compact panel view and expanded popup with detailed information
-
-## Screenshots
-
-
 
 ## Installation
 
@@ -77,17 +77,17 @@ Expand the widget to see:
 ### Requirements
 
 - KDE Plasma 6.0 or later
-- Qt 5.15 or later
+- Qt 6 or later
 - Plasma SDK (for `plasmoidviewer`)
 
 Install Plasma SDK:
 ```bash
 # On NixOS
-nix-shell -p plasma-sdk
+nix-shell -p kdePackages.plasma-sdk
 
 # On other distributions
-sudo apt install plasma-sdk  # Ubuntu/Debian
-sudo dnf install plasma-sdk   # Fedora
+sudo apt install kdePackages.plasma-sdk  # Ubuntu/Debian
+sudo dnf install kdePackages.plasma-sdk   # Fedora
 ```
 
 ### Testing the Widget
@@ -133,18 +133,3 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - **GitHub Repository**: https://github.com/DocBrown101/org.kde.plasma.nixos.channelstatus
 - **Issue Tracker**: https://github.com/DocBrown101/org.kde.plasma.nixos.channelstatus/issues
 - **Download Page**: https://www.opendesktop.org/p/2332279
-
-## Author
-
-DocBrown101 (Daniel)
-- Email: docbrown@tutanota.de
-
-## Changelog
-
-### Version 0.9.1
-- Initial release
-- Support for monitoring single NixOS channel
-- Display all available channels
-- Bilingual German/English interface
-- Automatic refresh with configurable interval
-- Network retry mechanism
