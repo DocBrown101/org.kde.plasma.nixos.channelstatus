@@ -20,6 +20,7 @@ PlasmoidItem {
         timestamp: 0
     })
     property var allChannelsData: []
+    property string allChannelsStatus: "loading"
     property int retryCount: 0
     property int maxRetries: 5
 
@@ -27,6 +28,11 @@ PlasmoidItem {
     property string channelVersion: Plasmoid.configuration.channelVersion
     property int updateInterval: Plasmoid.configuration.updateInterval
     property string configLanguage: Plasmoid.configuration.language || "auto"
+    property bool notifyOnChannelUpdate: Plasmoid.configuration.notifyOnChannelUpdate
+    property int warningThresholdHours: Plasmoid.configuration.warningThresholdHours || 48
+    property int refreshGeneration: 0
+    property bool hasSeenSelectedCommit: false
+    property string lastKnownSelectedCommit: ""
     property string currentLanguage: {
         if (configLanguage === "auto") {
             return Qt.locale().name.startsWith("de") ? "de" : "en";
@@ -44,22 +50,20 @@ PlasmoidItem {
     }
 
     Component.onCompleted: {
-        updateStatus(true);
-        updateAllChannels();
+        refreshChannels(true);
     }
 
     // Settings changed
     onChannelVersionChanged: {
         console.log("Channel Version geändert auf:", channelVersion);
-        updateStatus(true);
+        applySelectedChannelFromCache(true);
     }
     onUpdateIntervalChanged: {
         console.log("Update Interval geändert auf:", updateInterval);
     }
     onConfigLanguageChanged: {
         console.log("Sprache geändert auf:", configLanguage, "-> Effektiv:", currentLanguage);
-        updateStatus(true);
-        updateAllChannels();
+        refreshChannels(true);
     }
 
     compactRepresentation: Item {
@@ -75,11 +79,11 @@ PlasmoidItem {
             anchors.centerIn: parent
             spacing: 1
 
-            // NixOS 25.11
+            // NixOS 26.11
             QQC2.Label {
                 id: versionLabel
                 Layout.alignment: Qt.AlignHCenter
-                text: "NixOS " + root.channelVersion
+                text: "NixOS " + root.currentChannelVersion()
                 font.pointSize: Kirigami.Theme.smallFont.pointSize
                 color: Kirigami.Theme.textColor
             }
@@ -286,10 +290,20 @@ PlasmoidItem {
                         model: root.allChannelsData
                         spacing: 0
                         delegate: Rectangle {
+                            id: channelDelegate
+                            property bool selected: modelData.channel === root.currentChannelName()
+
                             width: ListView.view.width
                             height: Kirigami.Units.gridUnit * 3
-                            color: index % 2 === 0 ? Kirigami.Theme.backgroundColor : Qt.rgba(Kirigami.Theme.backgroundColor.r, Kirigami.Theme.backgroundColor.g, Kirigami.Theme.backgroundColor.b, 0.5)
-                            
+                            color: selected ? Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g, Kirigami.Theme.highlightColor.b, 0.18) : (index % 2 === 0 ? Kirigami.Theme.backgroundColor : Qt.rgba(Kirigami.Theme.backgroundColor.r, Kirigami.Theme.backgroundColor.g, Kirigami.Theme.backgroundColor.b, 0.5))
+
+                            MouseArea {
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.selectChannel(modelData.channel)
+                            }
+
                             RowLayout {
                                 anchors.fill: parent
                                 anchors.margins: Kirigami.Units.smallSpacing
@@ -301,7 +315,7 @@ PlasmoidItem {
                                 QQC2.Label {
                                     Layout.fillWidth: true
                                     text: modelData.channel
-                                    font.bold: modelData.channel === "nixos-" + root.channelVersion
+                                    font.bold: channelDelegate.selected
                                     font.family: "monospace"
                                     elide: Text.ElideRight
                                 }
@@ -348,8 +362,8 @@ PlasmoidItem {
                         QQC2.Label {
                             anchors.centerIn: parent
                             visible: channelListView.count === 0
-                            text: tr("Lade Channel-Daten ...", "Loading channel data...")
-                            color: Kirigami.Theme.disabledTextColor
+                            text: getAllChannelsEmptyText()
+                            color: root.allChannelsStatus === "error" ? Kirigami.Theme.negativeTextColor : Kirigami.Theme.disabledTextColor
                         }
                     }
                 }
@@ -367,8 +381,7 @@ PlasmoidItem {
                     text: tr("Aktualisieren", "Refresh")
                     icon.name: "view-refresh"
                     onClicked: {
-                        updateStatus(true);
-                        updateAllChannels();
+                        refreshChannels(true);
                     }
                 }
                 
@@ -400,10 +413,7 @@ PlasmoidItem {
         interval: root.updateInterval * 60 * 1000
         running: true
         repeat: true
-        onTriggered: {
-            updateStatus(false);
-            updateAllChannels();
-        }
+        onTriggered: refreshChannels(false)
     }
 
     Timer {
@@ -411,7 +421,7 @@ PlasmoidItem {
         interval: 5000
         repeat: false
         running: false
-        onTriggered: doFetch()
+        onTriggered: performChannelsFetch()
     }
 
     Timer {
@@ -419,30 +429,32 @@ PlasmoidItem {
         interval: 60000
         running: true
         repeat: true
-        onTriggered: {
-            if (root.channelStatus.status === "success" && root.channelStatus.rawDateTime) {
-                var date = new Date(root.channelStatus.rawDateTime);
-                partialUpdateChannelStatus({ lastUpdated: Logic.formatDateTime(date, root.currentLanguage) });
-            }
-        }
+        onTriggered: updateRelativeLabels()
     }
 
     function partialUpdateChannelStatus(updates) {
         root.channelStatus = Object.assign({}, root.channelStatus, updates);
     }
 
-    function updateStatus(forceUpdate) {
+    function refreshChannels(forceUpdate) {
         root.retryCount = 0;
         retryTimer.stop();
         if (forceUpdate) {
-            root.channelStatus = { lastUpdated: tr("Lädt ...", "Loading..."), commit: "", status: "loading", channel: "nixos-" + channelVersion };
+            root.allChannelsStatus = "loading";
+            root.channelStatus = { lastUpdated: tr("Lädt ...", "Loading..."), commit: "", status: "loading", channel: currentChannelName() };
         }
-        doFetch();
+        performChannelsFetch();
     }
 
-    function doFetch() {
-        Logic.fetchChannelStatus(channelVersion, function(status) {
-            if (status.status === "network_error") {
+    function performChannelsFetch() {
+        var requestId = ++root.refreshGeneration;
+
+        Logic.fetchChannelsStatus(function(result) {
+            if (requestId !== root.refreshGeneration) {
+                return;
+            }
+
+            if (result.status === "network_error") {
                 if (root.retryCount < root.maxRetries) {
                     root.retryCount++;
                     console.log("⏳ Retry", root.retryCount, "/", root.maxRetries);
@@ -452,7 +464,7 @@ PlasmoidItem {
                     root.channelStatus = {
                         lastUpdated: retryMsg,
                         status: "retrying",
-                        channel: status.channel,
+                        channel: currentChannelName(),
                         retryCount: root.retryCount,
                         maxRetries: root.maxRetries
                     };
@@ -461,22 +473,114 @@ PlasmoidItem {
                     root.channelStatus = {
                         lastUpdated: root.currentLanguage === "de" ? "Keine Verbindung" : "No connection",
                         status: "error",
-                        channel: status.channel
+                        channel: currentChannelName()
                     };
+                    root.allChannelsStatus = root.allChannelsData.length === 0 ? "error" : root.allChannelsStatus;
                     root.retryCount = 0;
                 }
             } else {
                 root.retryCount = 0;
                 retryTimer.stop();
-                root.channelStatus = status;
+                root.allChannelsData = result.channels;
+                root.allChannelsStatus = result.channels.length === 0 ? "empty" : "success";
+                setSelectedChannelStatus(Logic.findChannelStatusInList(result.channels, root.channelVersion, root.currentLanguage), false);
             }
         }, root.currentLanguage);
     }
 
-    function updateAllChannels() {
-        Logic.fetchAllChannels(function(channels) {
-            root.allChannelsData = channels;
-        }, root.currentLanguage);
+    function applySelectedChannelFromCache(resetCommitTracking) {
+        if (root.allChannelsData.length === 0) {
+            refreshChannels(true);
+            return;
+        }
+
+        setSelectedChannelStatus(Logic.findChannelStatusInList(root.allChannelsData, root.channelVersion, root.currentLanguage), resetCommitTracking);
+    }
+
+    function setSelectedChannelStatus(status, resetCommitTracking) {
+        var shouldNotify = root.notifyOnChannelUpdate &&
+                !resetCommitTracking &&
+                status.status === "success" &&
+                status.fullCommit !== "" &&
+                root.hasSeenSelectedCommit &&
+                root.lastKnownSelectedCommit !== "" &&
+                status.fullCommit !== root.lastKnownSelectedCommit;
+
+        root.channelStatus = status;
+
+        if (status.status === "success" && status.fullCommit !== "") {
+            if (shouldNotify) {
+                sendChannelUpdateNotification(status);
+            }
+
+            root.lastKnownSelectedCommit = status.fullCommit;
+            root.hasSeenSelectedCommit = true;
+        } else if (resetCommitTracking) {
+            root.lastKnownSelectedCommit = "";
+            root.hasSeenSelectedCommit = false;
+        }
+    }
+
+    function selectChannel(channelName) {
+        var version = Logic.getVersionFromChannel(channelName);
+        if (version === currentChannelVersion()) {
+            return;
+        }
+
+        Plasmoid.configuration.channelVersion = version;
+    }
+
+    function currentChannelName() {
+        return Logic.getChannelName(root.channelVersion);
+    }
+
+    function currentChannelVersion() {
+        return Logic.getVersionFromChannel(root.channelVersion);
+    }
+
+    function getAllChannelsEmptyText() {
+        if (root.allChannelsStatus === "error") {
+            return tr("Channel-Daten konnten nicht geladen werden", "Could not load channel data");
+        }
+        if (root.allChannelsStatus === "empty") {
+            return tr("Keine Channel-Daten verfügbar", "No channel data available");
+        }
+        return tr("Lade Channel-Daten ...", "Loading channel data...");
+    }
+
+    function updateRelativeLabels() {
+        if (root.allChannelsData.length > 0) {
+            root.allChannelsData = Logic.updateRelativeTimes(root.allChannelsData, root.currentLanguage);
+            setSelectedChannelStatus(Logic.findChannelStatusInList(root.allChannelsData, root.channelVersion, root.currentLanguage), true);
+        } else if (root.channelStatus.status === "success" && root.channelStatus.rawDateTime) {
+            var date = new Date(root.channelStatus.rawDateTime);
+            partialUpdateChannelStatus({ lastUpdated: Logic.formatDateTime(date, root.currentLanguage) });
+        }
+    }
+
+    function sendChannelUpdateNotification(status) {
+        var title = tr("NixOS Channel aktualisiert", "NixOS channel updated");
+        var text = tr("%1 ist jetzt bei %2", "%1 is now at %2", status.channel, status.commit);
+        var source = [
+            "import QtQuick",
+            "import org.kde.notification 1.0",
+            "Notification {",
+            "    componentName: \"plasma_workspace\"",
+            "    eventId: \"notification\"",
+            "    title: " + JSON.stringify(title),
+            "    text: " + JSON.stringify(text),
+            "    iconName: \"nix-snowflake\"",
+            "    autoDelete: true",
+            "}"
+        ].join("\n");
+
+        try {
+            var notification = Qt.createQmlObject(source, root, "channelUpdateNotification");
+            notification.sendEvent();
+        } catch (e) {
+            console.log("KNotifications konnte nicht verwendet werden:", e);
+            console.log(title + ": " + text);
+        }
     }
 
     function getAbsoluteTooltipDateTime(isoString) {
@@ -488,7 +592,7 @@ PlasmoidItem {
 
     function getStatusColor() {
         if (root.channelStatus.status === "success") {
-            if (isOlderThan48Hours(root.channelStatus.rawDateTime)) {
+            if (isOlderThanThreshold(root.channelStatus.rawDateTime, root.warningThresholdHours)) {
                 return "#ff9500";
             }
             return Kirigami.Theme.positiveTextColor;
@@ -500,12 +604,12 @@ PlasmoidItem {
         return Kirigami.Theme.textColor;
     }
 
-    function isOlderThan48Hours(isoString) {
+    function isOlderThanThreshold(isoString, thresholdHours) {
         if (!isoString) return false;
         var date = new Date(isoString);
         if (isNaN(date)) return false;
         var diffHours = (Date.now() - date.getTime()) / (1000 * 60 * 60);
-        return diffHours >= 48;
+        return diffHours >= thresholdHours;
     }
 
     function openCommitLink(fullCommit) {
@@ -516,7 +620,7 @@ PlasmoidItem {
 
     function getStatusText() {
         if (root.channelStatus.status === "success") {
-            return tr("✓ Channel Status für NixOS %1", "✓ Channel status for NixOS %1", root.channelVersion);
+            return tr("✓ Channel Status für NixOS %1", "✓ Channel status for NixOS %1", currentChannelVersion());
         } else if (root.channelStatus.status === "error") {
             return tr("⚠️ Fehler beim Laden", "⚠️ Error loading");
         } else if (root.channelStatus.status === "not_found") {

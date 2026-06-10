@@ -37,7 +37,11 @@ function fetchAPI(url, callback, lang) {
         }
 
         if (xhr.status === 200) {
-            respond({status: "success", data: JSON.parse(xhr.responseText)});
+            try {
+                respond({status: "success", data: JSON.parse(xhr.responseText)});
+            } catch (e) {
+                respond({status: "network_error", error: tr(lang, "Ungültige API-Antwort", "Invalid API response")});
+            }
         } else {
             respond({status: "network_error", error: tr(lang, "Keine Verbindung", "No connection")});
         }
@@ -57,102 +61,102 @@ function fetchAPI(url, callback, lang) {
     }
 }
 
-function fetchChannelStatus(version, callback, lang) {
-    var channelName = "nixos-" + version;
-    console.log("=== Lade Channel-Daten ===");
-
-    fetchAPI("https://prometheus.nixos.org/api/v1/query?query=channel_update_time", function(result) {
-        if (result.status === "success") {
-            var channelData = findChannelInResponse(result.data, channelName);
-
-            if (channelData) {
-                fetchAPI("https://prometheus.nixos.org/api/v1/query?query=channel_revision", function(revResult) {
-                    var revision = revResult.status === "success" ?
-                        findRevisionForChannel(revResult.data, channelName) :
-                        {commit: "", fullCommit: ""};
-
-                    callback({
-                        lastUpdated: formatDateTime(channelData.date, lang),
-                        rawDateTime: channelData.date.toISOString(),
-                        timestamp: channelData.timestamp,
-                        commit: revision.commit,
-                        fullCommit: revision.fullCommit,
-                        status: "success",
-                        channel: channelName
-                    });
-                }, lang);
-            } else {
-                callback({
-                    lastUpdated: tr(lang, "Channel nicht gefunden", "Channel not found"),
-                    status: "not_found",
-                    channel: channelName
-                });
-            }
-        } else {
-            callback({status: "network_error", channel: channelName, error: result.error});
-        }
-    }, lang);
-}
-
-function fetchAllChannels(callback, lang) {
-    console.log("=== Lade alle Channels ===");
+function fetchChannelsStatus(callback, lang) {
+    console.log("=== Lade gebündelte Channel-Daten ===");
 
     fetchAPI("https://prometheus.nixos.org/api/v1/query?query=channel_update_time", function(updateResult) {
         if (updateResult.status !== "success") {
-            callback([]);
+            callback({status: "network_error", channels: [], error: updateResult.error});
+            return;
+        }
+        if (!isValidPrometheusResponse(updateResult.data)) {
+            callback({status: "network_error", channels: [], error: tr(lang, "Ungültige API-Antwort", "Invalid API response")});
             return;
         }
 
         fetchAPI("https://prometheus.nixos.org/api/v1/query?query=channel_revision", function(revResult) {
+            var revisionData = revResult.status === "success" && isValidPrometheusResponse(revResult.data) ? revResult.data : null;
             var channels = parseAllChannels(
                 updateResult.data,
-                revResult.status === "success" ? revResult.data : null,
+                revisionData,
                 lang
             );
-            callback(channels);
+
+            callback({
+                status: "success",
+                channels: channels,
+                revisionStatus: revResult.status
+            });
         }, lang);
     }, lang);
 }
 
-function findChannelInResponse(response, channelName) {
-    if (!response.data || !response.data.result) return null;
-
-    for (var i = 0; i < response.data.result.length; i++) {
-        var item = response.data.result[i];
-        if (item.metric.channel === channelName) {
-            var timestamp = parseFloat(item.value[1]);
-            return {
-                channel: channelName,
-                timestamp: timestamp,
-                date: new Date(timestamp * 1000)
-            };
-        }
-    }
-    return null;
+function isValidPrometheusResponse(response) {
+    return response &&
+            response.status === "success" &&
+            response.data &&
+            response.data.result &&
+            typeof response.data.result.length === "number";
 }
 
-function findRevisionForChannel(response, channelName) {
-    if (!response.data || !response.data.result) return {commit: "", fullCommit: ""};
+function getChannelName(version) {
+    if (!version) return "nixos-";
+    return version.indexOf("nixos-") === 0 ? version : "nixos-" + version;
+}
 
-    for (var i = 0; i < response.data.result.length; i++) {
-        var item = response.data.result[i];
-        if (item.metric.channel === channelName) {
-            var revision = item.metric.revision || "";
+function getVersionFromChannel(channelName) {
+    if (!channelName) return "";
+    return channelName.indexOf("nixos-") === 0 ? channelName.substring(6) : channelName;
+}
+
+function findChannelStatusInList(channels, version, lang) {
+    var channelName = getChannelName(version);
+
+    for (var i = 0; i < channels.length; i++) {
+        if (channels[i].channel === channelName) {
             return {
-                commit: revision.substring(0, 7),
-                fullCommit: revision
+                lastUpdated: channels[i].lastUpdated,
+                rawDateTime: channels[i].rawDateTime,
+                timestamp: channels[i].timestamp,
+                commit: channels[i].commit,
+                fullCommit: channels[i].fullCommit,
+                status: "success",
+                channel: channelName
             };
         }
     }
-    return {commit: "", fullCommit: ""};
+
+    return {
+        lastUpdated: tr(lang, "Channel nicht gefunden", "Channel not found"),
+        commit: "",
+        fullCommit: "",
+        status: "not_found",
+        channel: channelName
+    };
+}
+
+function updateRelativeTimes(channels, lang) {
+    return channels.map(function(channel) {
+        var updatedChannel = {};
+        for (var key in channel) {
+            updatedChannel[key] = channel[key];
+        }
+
+        if (updatedChannel.rawDateTime) {
+            updatedChannel.lastUpdated = formatDateTime(new Date(updatedChannel.rawDateTime), lang);
+        }
+
+        return updatedChannel;
+    });
 }
 
 function parseAllChannels(updateData, revisionData, lang) {
-    if (!updateData.data || !updateData.data.result) return [];
+    if (!isValidPrometheusResponse(updateData)) return [];
 
     var revisionMap = {};
     if (revisionData && revisionData.data && revisionData.data.result) {
         revisionData.data.result.forEach(function(item) {
+            if (!item.metric || !item.metric.channel) return;
             var revision = item.metric.revision || "";
             revisionMap[item.metric.channel] = {
                 commit: revision.substring(0, 7),
@@ -162,8 +166,16 @@ function parseAllChannels(updateData, revisionData, lang) {
     }
 
     var channels = updateData.data.result.map(function(item) {
+        if (!item.metric || !item.metric.channel || !item.value || item.value.length < 2) {
+            return null;
+        }
+
         var channelName = item.metric.channel;
         var timestamp = parseFloat(item.value[1]);
+        if (isNaN(timestamp)) {
+            return null;
+        }
+
         var date = new Date(timestamp * 1000);
         var revision = revisionMap[channelName] || {commit: "", fullCommit: ""};
 
@@ -175,6 +187,8 @@ function parseAllChannels(updateData, revisionData, lang) {
             commit: revision.commit,
             fullCommit: revision.fullCommit
         };
+    }).filter(function(channel) {
+        return channel !== null;
     });
 
     channels.sort(function(a, b) {

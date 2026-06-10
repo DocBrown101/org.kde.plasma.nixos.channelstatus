@@ -12,8 +12,11 @@ A KDE Plasma 6 plasmoid that displays the current status of NixOS channels direc
 
 - **Real-time Channel Monitoring**: Display the last update time and current commit hash for your selected NixOS channel
 - **All Channels Overview**: View status for all available NixOS channels in a scrollable list
+- **Interactive Channel List**: Select the monitored channel directly from the channel overview
 - **Automatic Refresh**: Configurable update interval
 - **Visual Status Indicators**: Color-coded status
+- **Configurable Warning Threshold**: Choose when stale channels should be highlighted
+- **Optional Update Notifications**: Get notified when the selected channel moves to a new commit
 - **Bilingual Support**: German and English interface
 - **Network Resilience**: Automatic retry mechanism
 - **Compact & Full Views**: Compact panel view and expanded popup with detailed information
@@ -32,12 +35,14 @@ A KDE Plasma 6 plasmoid that displays the current status of NixOS channels direc
 ### Method 2: Build from Source
 
 1. Clone this repository:
+
    ```bash
    git clone https://github.com/DocBrown101/org.kde.plasma.nixos.channelstatus.git
    cd org.kde.plasma.nixos.channelstatus
    ```
 
 2. Create the plasmoid package:
+
    ```bash
    cd src
    zip -r ../org.kde.plasma.nixos.channelstatus.plasmoid *
@@ -52,22 +57,26 @@ A KDE Plasma 6 plasmoid that displays the current status of NixOS channels direc
 
 After adding the widget to your panel, configure it by right-clicking and selecting "Configure Widget":
 
-- **Channel Version**: Select which NixOS channel to monitor (e.g., 25.11, 25.05, unstable)
+- **Channel Version**: Select which NixOS channel to monitor (e.g., 26.11, 26.05, unstable)
 - **Update Interval**: Set the refresh frequency in minutes (5-1440, default: 30)
+- **Warning Threshold**: Set after how many hours without an update the channel should be highlighted (default: 48)
+- **Update Notifications**: Optionally show a Plasma notification when the selected channel changes commit
 - **Language**: Choose interface language (auto-detect, German, or English)
 
 ### Compact View
 
 The compact panel view displays:
-- Channel name (e.g., "NixOS 25.11")
+
+- Channel name (e.g., "NixOS 26.11")
 - Time since last update (e.g., "vor 17 Stunden" or "17 hours ago")
 - Status indicator (✓, ⚠️, ⏳, 🔄, ❓)
 
 ### Full Popup View
 
 Expand the widget to see:
+
 - Detailed status for your selected channel
-- Complete list of all NixOS channels
+- Complete interactive list of all NixOS channels
 - Clickable commit hashes linking to GitHub
 - Refresh and "Nix Channel Status" web buttons
 - Countdown to next automatic update
@@ -81,6 +90,7 @@ Expand the widget to see:
 - Plasma SDK (for `plasmoidviewer`)
 
 Install Plasma SDK:
+
 ```bash
 # On NixOS
 nix-shell -p kdePackages.plasma-sdk
@@ -100,6 +110,7 @@ plasmoidviewer --applet .
 ```
 
 Or test the installed widget:
+
 ```bash
 plasmawindowed org.kde.plasma.nixos.channelstatus
 ```
@@ -107,6 +118,7 @@ plasmawindowed org.kde.plasma.nixos.channelstatus
 ### Build Package
 
 Create the distributable `.plasmoid` file:
+
 ```bash
 cd src
 zip -r ../org.kde.plasma.nixos.channelstatus.plasmoid *
@@ -115,6 +127,7 @@ zip -r ../org.kde.plasma.nixos.channelstatus.plasmoid *
 ## API Data Source
 
 This widget fetches data from the official NixOS Prometheus API:
+
 - Channel update times: `https://prometheus.nixos.org/api/v1/query?query=channel_update_time`
 - Channel revisions: `https://prometheus.nixos.org/api/v1/query?query=channel_revision`
 

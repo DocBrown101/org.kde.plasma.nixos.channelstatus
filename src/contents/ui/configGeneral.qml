@@ -8,6 +8,8 @@ ColumnLayout {
     
     property alias cfg_channelVersion: channelVersionField.text
     property alias cfg_updateInterval: updateIntervalSpinBox.value
+    property alias cfg_notifyOnChannelUpdate: notifyOnChannelUpdateCheckBox.checked
+    property alias cfg_warningThresholdHours: warningThresholdSpinBox.value
     property string cfg_language
     
     Kirigami.FormLayout {
@@ -53,14 +55,14 @@ ColumnLayout {
         QQC2.TextField {
             id: channelVersionField
             Kirigami.FormData.label: "NixOS Channel Version:"
-            placeholderText: "25.11"
+            placeholderText: "26.11"
             
             QQC2.ToolTip.visible: hovered
-            QQC2.ToolTip.text: "Die Version des NixOS Channels (z.B. 25.11, 24.05, unstable)\nThe version of the NixOS channel (e.g. 25.11, 24.05, unstable)"
+            QQC2.ToolTip.text: "Die Version des NixOS Channels (z.B. 26.11, 26.05, unstable)\nThe version of the NixOS channel (e.g. 26.11, 26.05, unstable)"
         }
         
         QQC2.Label {
-            text: "Beispiele / Examples: 25.11, 25.05, unstable, unstable-small"
+            text: "Beispiele / Examples: 26.11, 26.05, unstable, unstable-small"
             font.pointSize: Kirigami.Theme.smallFont.pointSize
             color: Kirigami.Theme.disabledTextColor
             wrapMode: Text.WordWrap
@@ -81,6 +83,26 @@ ColumnLayout {
             
             QQC2.ToolTip.visible: hovered
             QQC2.ToolTip.text: "Wie oft soll der Status automatisch aktualisiert werden? (5-1440 Minuten)\nHow often should the status be automatically updated? (5-1440 minutes)"
+        }
+
+        QQC2.SpinBox {
+            id: warningThresholdSpinBox
+            Kirigami.FormData.label: "Warnschwelle / Warning threshold (h):"
+            from: 1
+            to: 720
+            stepSize: 1
+
+            QQC2.ToolTip.visible: hovered
+            QQC2.ToolTip.text: "Ab wie vielen Stunden ohne Channel-Update soll der Status orange werden?\nAfter how many hours without a channel update should the status turn orange?"
+        }
+
+        QQC2.CheckBox {
+            id: notifyOnChannelUpdateCheckBox
+            Kirigami.FormData.label: "Benachrichtigung / Notification:"
+            text: "Bei Channel-Update benachrichtigen / Notify on channel update"
+
+            QQC2.ToolTip.visible: hovered
+            QQC2.ToolTip.text: "Zeigt eine Plasma-Benachrichtigung, wenn sich der Commit des ausgewählten Channels ändert.\nShows a Plasma notification when the selected channel commit changes."
         }
         
         Item {
