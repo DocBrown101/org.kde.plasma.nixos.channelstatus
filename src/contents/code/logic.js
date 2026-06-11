@@ -101,12 +101,24 @@ function isValidPrometheusResponse(response) {
 
 function getChannelName(version) {
     if (!version) return "nixos-";
-    return version.indexOf("nixos-") === 0 ? version : "nixos-" + version;
+    if (version.indexOf("nixos-") === 0 || version.indexOf("nixpkgs-") === 0) {
+        return version;
+    }
+    return "nixos-" + version;
 }
 
-function getVersionFromChannel(channelName) {
-    if (!channelName) return "";
-    return channelName.indexOf("nixos-") === 0 ? channelName.substring(6) : channelName;
+function formatChannelLabel(channelName) {
+    var channel = getChannelName(channelName);
+
+    if (channel.indexOf("nixos-") === 0) {
+        return "NixOS " + channel.substring(6);
+    }
+
+    if (channel.indexOf("nixpkgs-") === 0) {
+        return "nixpkgs " + channel.substring(8);
+    }
+
+    return channel;
 }
 
 function findChannelStatusInList(channels, version, lang) {

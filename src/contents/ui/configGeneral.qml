@@ -54,15 +54,15 @@ ColumnLayout {
         
         QQC2.TextField {
             id: channelVersionField
-            Kirigami.FormData.label: "NixOS Channel Version:"
-            placeholderText: "26.11"
+            Kirigami.FormData.label: "Channel:"
+            placeholderText: "26.05"
             
             QQC2.ToolTip.visible: hovered
-            QQC2.ToolTip.text: "Die Version des NixOS Channels (z.B. 26.11, 26.05, unstable)\nThe version of the NixOS channel (e.g. 26.11, 26.05, unstable)"
+            QQC2.ToolTip.text: "Channel-Kurzform oder exakter Channel-Name (z.B. 26.05, nixos-26.05-small, nixpkgs-26.05-darwin)\nChannel shorthand or exact channel name (e.g. 26.05, nixos-26.05-small, nixpkgs-26.05-darwin)"
         }
         
         QQC2.Label {
-            text: "Beispiele / Examples: 26.11, 26.05, unstable, unstable-small"
+            text: "Beispiele / Examples: 26.05, unstable, nixos-26.05-small, nixpkgs-26.05-darwin"
             font.pointSize: Kirigami.Theme.smallFont.pointSize
             color: Kirigami.Theme.disabledTextColor
             wrapMode: Text.WordWrap
@@ -117,7 +117,7 @@ ColumnLayout {
         }
         
         QQC2.Label {
-            text: "• Die Channel-Version muss exakt übereinstimmen (ohne 'nixos-' Präfix)\n  The channel version must match exactly (without 'nixos-' prefix)"
+            text: "• Kurzformen werden als NixOS-Channels interpretiert; exakte Channel-Namen können direkt verwendet werden\n  Shorthands are interpreted as NixOS channels; exact channel names can be used directly"
             wrapMode: Text.WordWrap
             Layout.fillWidth: true
             font.pointSize: Kirigami.Theme.smallFont.pointSize

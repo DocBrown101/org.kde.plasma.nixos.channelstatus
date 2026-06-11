@@ -83,7 +83,7 @@ PlasmoidItem {
             QQC2.Label {
                 id: versionLabel
                 Layout.alignment: Qt.AlignHCenter
-                text: "NixOS " + root.currentChannelVersion()
+                text: root.currentChannelLabel()
                 font.pointSize: Kirigami.Theme.smallFont.pointSize
                 color: Kirigami.Theme.textColor
             }
@@ -522,20 +522,19 @@ PlasmoidItem {
     }
 
     function selectChannel(channelName) {
-        var version = Logic.getVersionFromChannel(channelName);
-        if (version === currentChannelVersion()) {
+        if (channelName === currentChannelName()) {
             return;
         }
 
-        Plasmoid.configuration.channelVersion = version;
+        Plasmoid.configuration.channelVersion = channelName;
     }
 
     function currentChannelName() {
         return Logic.getChannelName(root.channelVersion);
     }
 
-    function currentChannelVersion() {
-        return Logic.getVersionFromChannel(root.channelVersion);
+    function currentChannelLabel() {
+        return Logic.formatChannelLabel(currentChannelName());
     }
 
     function getAllChannelsEmptyText() {
@@ -620,7 +619,7 @@ PlasmoidItem {
 
     function getStatusText() {
         if (root.channelStatus.status === "success") {
-            return tr("✓ Channel Status für NixOS %1", "✓ Channel status for NixOS %1", currentChannelVersion());
+            return tr("✓ Channel Status für %1", "✓ Channel status for %1", currentChannelLabel());
         } else if (root.channelStatus.status === "error") {
             return tr("⚠️ Fehler beim Laden", "⚠️ Error loading");
         } else if (root.channelStatus.status === "not_found") {

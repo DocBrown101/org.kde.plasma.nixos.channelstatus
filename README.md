@@ -29,7 +29,7 @@ A KDE Plasma 6 plasmoid that displays the current status of NixOS channels direc
 2. Download the `.plasmoid` file
 3. Install using one of these methods:
    - Right-click the file and select "Install Plasma Widget"
-   - Or run: `plasmapkg2 -i org.kde.plasma.nixos.channelstatus.plasmoid`
+   - Or run: `kpackagetool6 -t Plasma/Applet -i org.kde.plasma.nixos.channelstatus.plasmoid`
 4. Add the widget to your desktop or panel by right-clicking and selecting "Add Widgets..."
 
 ### Method 2: Build from Source
@@ -50,14 +50,14 @@ A KDE Plasma 6 plasmoid that displays the current status of NixOS channels direc
 
 3. Install the widget:
    ```bash
-   plasmapkg2 -i ../org.kde.plasma.nixos.channelstatus.plasmoid
+   kpackagetool6 -t Plasma/Applet -i ../org.kde.plasma.nixos.channelstatus.plasmoid
    ```
 
 ## Configuration
 
 After adding the widget to your panel, configure it by right-clicking and selecting "Configure Widget":
 
-- **Channel Version**: Select which NixOS channel to monitor (e.g., 26.11, 26.05, unstable)
+- **Channel**: Select which channel to monitor (e.g., 26.05 or unstable)
 - **Update Interval**: Set the refresh frequency in minutes (5-1440, default: 30)
 - **Warning Threshold**: Set after how many hours without an update the channel should be highlighted (default: 48)
 - **Update Notifications**: Optionally show a Plasma notification when the selected channel changes commit
